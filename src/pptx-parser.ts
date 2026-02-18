@@ -2,7 +2,12 @@ import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
 import { XMLParser } from "fast-xml-parser";
-import { parseScript, type VideoScript, type ImageScene, type TextScene } from "./schema.ts";
+import {
+  parseScript,
+  type VideoScript,
+  type ImageScene,
+  type TextScene,
+} from "./schema.ts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,7 +29,8 @@ interface SlideContent {
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  isArray: (name) => ["p:sldId", "Relationship", "p:sp", "p:pic", "a:p", "a:r"].includes(name),
+  isArray: (name) =>
+    ["p:sldId", "Relationship", "p:sp", "p:pic", "a:p", "a:r"].includes(name),
 });
 
 function parseXml(xml: string): unknown {
@@ -32,10 +38,14 @@ function parseXml(xml: string): unknown {
 }
 
 /** Recursively collect all values at a given key in an object tree. */
-function collectValues(obj: unknown, key: string, results: string[] = []): string[] {
+function collectValues(
+  obj: unknown,
+  key: string,
+  results: string[] = [],
+): string[] {
   if (obj === null || typeof obj !== "object") return results;
   if (Array.isArray(obj)) {
-    obj.forEach(item => collectValues(item, key, results));
+    obj.forEach((item) => collectValues(item, key, results));
     return results;
   }
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
@@ -48,25 +58,31 @@ function collectValues(obj: unknown, key: string, results: string[] = []): strin
   return results;
 }
 
-/** Read an XML file from zip and parse it. */
-async function readZipXml(zip: PizZip, zipPath: string): Promise<unknown> {
+/** Read an XML file from a PizZip and parse it. PizZip API is synchronous. */
+function readZipXml(zip: PizZip, zipPath: string): unknown {
   const file = zip.file(zipPath);
   if (!file) throw new Error(`Not found in PPTX: ${zipPath}`);
-  const xml = await file.async("string") as string;
+  const xml = file.asText();
   return parseXml(xml);
 }
 
 // ── Slide order ───────────────────────────────────────────────────────────────
 
-async function readSlideOrder(zip: PizZip): Promise<string[]> {
-  const pres = await readZipXml(zip, "ppt/presentation.xml") as Record<string, unknown>;
-  const rels = await readZipXml(zip, "ppt/_rels/presentation.xml.rels") as Record<string, unknown>;
+function readSlideOrder(zip: PizZip): string[] {
+  const pres = readZipXml(zip, "ppt/presentation.xml") as Record<
+    string,
+    unknown
+  >;
+  const rels = readZipXml(zip, "ppt/_rels/presentation.xml.rels") as Record<
+    string,
+    unknown
+  >;
 
   // Build rId → slide filename map from relationships
   const rIdMap = new Map<string, string>();
-  const relsList = (
-    (rels["Relationships"] as Record<string, unknown>)?.["Relationship"]
-  ) as Array<Record<string, string>> | undefined;
+  const relsList = (rels["Relationships"] as Record<string, unknown>)?.[
+    "Relationship"
+  ] as Array<Record<string, string>> | undefined;
 
   if (Array.isArray(relsList)) {
     for (const rel of relsList) {
@@ -81,8 +97,12 @@ async function readSlideOrder(zip: PizZip): Promise<string[]> {
 
   // Extract ordered sldId list from presentation
   const presRoot = pres["p:presentation"] as Record<string, unknown>;
-  const sldIdLst = presRoot?.["p:sldIdLst"] as Record<string, unknown> | undefined;
-  const sldIds = sldIdLst?.["p:sldId"] as Array<Record<string, string>> | undefined;
+  const sldIdLst = presRoot?.["p:sldIdLst"] as
+    | Record<string, unknown>
+    | undefined;
+  const sldIds = sldIdLst?.["p:sldId"] as
+    | Array<Record<string, string>>
+    | undefined;
 
   if (!Array.isArray(sldIds) || sldIds.length === 0) {
     throw new Error("No slides found in presentation.xml");
@@ -101,15 +121,16 @@ async function readSlideOrder(zip: PizZip): Promise<string[]> {
 
 // ── Slide content extraction ──────────────────────────────────────────────────
 
-async function extractSlideContent(zip: PizZip, slideFile: string): Promise<SlideContent> {
+function extractSlideContent(zip: PizZip, slideFile: string): SlideContent {
   const slideZipFile = zip.file(slideFile);
   if (!slideZipFile) return { texts: [], imageSrc: null };
 
-  const slideXml = await slideZipFile.async("string") as string;
-  const slideDoc = parseXml(slideXml);
+  const slideDoc = parseXml(slideZipFile.asText());
 
   // Collect all text runs
-  const texts = collectValues(slideDoc, "a:t").map(t => t.trim()).filter(Boolean);
+  const texts = collectValues(slideDoc, "a:t")
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   // Resolve first image embed to a zip media path
   const embedIds = collectValues(slideDoc, "@_r:embed");
@@ -123,14 +144,13 @@ async function extractSlideContent(zip: PizZip, slideFile: string): Promise<Slid
     const relsZipFile = zip.file(relsPath);
 
     if (relsZipFile) {
-      const relsXml = await relsZipFile.async("string") as string;
-      const relsDoc = parseXml(relsXml) as Record<string, unknown>;
-      const relsList = (
-        (relsDoc["Relationships"] as Record<string, unknown>)?.["Relationship"]
-      ) as Array<Record<string, string>> | undefined;
+      const relsDoc = parseXml(relsZipFile.asText()) as Record<string, unknown>;
+      const slideRelsList = (
+        relsDoc["Relationships"] as Record<string, unknown>
+      )?.["Relationship"] as Array<Record<string, string>> | undefined;
 
-      if (Array.isArray(relsList)) {
-        for (const rel of relsList) {
+      if (Array.isArray(slideRelsList)) {
+        for (const rel of slideRelsList) {
           if (rel["@_Id"] === embedId) {
             const target = rel["@_Target"] ?? "";
             const mediaName = path.basename(target);
@@ -147,16 +167,17 @@ async function extractSlideContent(zip: PizZip, slideFile: string): Promise<Slid
 
 // ── Image extraction ──────────────────────────────────────────────────────────
 
-async function copyEmbeddedImage(
+function copyEmbeddedImage(
   zip: PizZip,
   mediaPath: string,
   imageDir: string,
   slideName: string,
-): Promise<string> {
+): string {
   const mediaFile = zip.file(mediaPath);
   if (!mediaFile) throw new Error(`Media not found in PPTX: ${mediaPath}`);
 
-  const buffer = await mediaFile.async("nodebuffer") as Buffer;
+  const uint8 = mediaFile.asUint8Array();
+  const buffer = Buffer.from(uint8);
   const ext = path.extname(mediaPath) || ".png";
   const filename = `${slideName}${ext}`;
   const destPath = path.join(imageDir, filename);
@@ -164,7 +185,7 @@ async function copyEmbeddedImage(
   fs.mkdirSync(imageDir, { recursive: true });
   fs.writeFileSync(destPath, buffer);
 
-  return `assets/${filename}`;
+  return filename;
 }
 
 // ── Cinematic defaults ────────────────────────────────────────────────────────
@@ -187,8 +208,6 @@ const DEFAULT_TEXT_ANIMATION = {
 
 /**
  * Parse a .pptx file path or raw Buffer and convert it to a VideoScript.
- * Accepts a file path (string) or a pre-read Buffer — the latter avoids
- * a filesystem dependency and is used in tests.
  */
 export async function pptxToScript(
   input: string | Buffer,
@@ -199,31 +218,33 @@ export async function pptxToScript(
     slideDuration = 5,
     outputVideo = "out/video.mp4",
     cinematic = true,
-    imageDir = "assets",
+    imageDir = "public",
   } = opts;
 
   const buffer = typeof input === "string" ? fs.readFileSync(input) : input;
   const zip = new PizZip(buffer);
 
-  const slideFiles = await readSlideOrder(zip);
+  const slideFiles = readSlideOrder(zip);
   if (slideFiles.length === 0) throw new Error("No slides found in PPTX file");
 
   const scenes: Array<ImageScene | TextScene> = [];
-  const transition = cinematic ? "fade" as const : "none" as const;
+  const transition = cinematic ? ("fade" as const) : ("none" as const);
 
   for (let i = 0; i < slideFiles.length; i++) {
     const slideName = `slide${i + 1}`;
-    const content = await extractSlideContent(zip, slideFiles[i]);
+    const content = extractSlideContent(zip, slideFiles[i]);
     const titleText = content.texts.join(" ").trim() || `Slide ${i + 1}`;
 
     if (content.imageSrc) {
-      const src = await copyEmbeddedImage(zip, content.imageSrc, imageDir, slideName);
+      const src = copyEmbeddedImage(zip, content.imageSrc, imageDir, slideName);
       const scene: ImageScene = {
         type: "image",
         src,
         duration: slideDuration,
         transition,
-        overlays: titleText ? [{ text: titleText, top: "85%", left: "5%", color: "#ffffff" }] : [],
+        overlays: titleText
+          ? [{ text: titleText, top: "85%", left: "5%", color: "#ffffff" }]
+          : [],
         ...(cinematic ? { kenBurns: DEFAULT_KEN_BURNS } : {}),
       };
       scenes.push(scene);
@@ -242,5 +263,12 @@ export async function pptxToScript(
     }
   }
 
-  return parseScript({ fps, width: 1920, height: 1080, output: outputVideo, cinematic, scenes });
+  return parseScript({
+    fps,
+    width: 1920,
+    height: 1080,
+    output: outputVideo,
+    cinematic,
+    scenes,
+  });
 }

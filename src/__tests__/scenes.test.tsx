@@ -34,6 +34,7 @@ mock.module("remotion", () => {
       out: (fn: (t: number) => number) => fn,
       cubic: (t: number) => t,
     },
+    staticFile: (path: string) => path,
   };
 });
 
@@ -60,14 +61,14 @@ const baseText: TextSceneType = {
 
 const baseImage: ImageSceneType = {
   type: "image",
-  src: "./assets/photo.jpg",
+  src: "photo.jpg",
   duration: 5,
   transition: "none",
 };
 
 const baseVideo: VideoSceneType = {
   type: "video",
-  src: "./assets/clip.mp4",
+  src: "clip.mp4",
   duration: 10,
   transition: "none",
   volume: 1,
@@ -104,7 +105,7 @@ describe("TextScene", () => {
 describe("ImageScene", () => {
   test("renders img element with correct src", () => {
     const html = renderToStaticMarkup(<ImageScene scene={baseImage} />);
-    expect(html).toContain("./assets/photo.jpg");
+    expect(html).toContain("photo.jpg");
   });
 
   test("renders overlays when provided", () => {
@@ -141,7 +142,7 @@ describe("ImageScene", () => {
 describe("VideoScene", () => {
   test("renders video element with correct src", () => {
     const html = renderToStaticMarkup(<VideoScene scene={baseVideo} />);
-    expect(html).toContain("./assets/clip.mp4");
+    expect(html).toContain("clip.mp4");
   });
 
   test("renders video element", () => {

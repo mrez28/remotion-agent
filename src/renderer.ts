@@ -39,8 +39,11 @@ export async function renderVideo(script: VideoScript): Promise<void> {
     outputLocation: script.output,
     inputProps: script,
     onProgress: ({ renderedFrames, totalFrames }) => {
-      const pct = totalFrames > 0 ? Math.round((renderedFrames / totalFrames) * 100) : 0;
-      process.stdout.write(`\rRender progress: ${pct}% (${renderedFrames}/${totalFrames} frames)`);
+      const pct =
+        totalFrames > 0 ? Math.round((renderedFrames / totalFrames) * 100) : 0;
+      process.stdout.write(
+        `\rRender progress: ${pct}% (${renderedFrames}/${totalFrames} frames)`,
+      );
     },
   });
   process.stdout.write("\n");

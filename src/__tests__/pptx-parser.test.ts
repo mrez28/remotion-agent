@@ -80,11 +80,14 @@ const zipFiles: Record<string, string | Buffer> = {
 mock.module("pizzip", () => ({
   default: class MockPizZip {
     constructor(_buf: Buffer) {}
-    file(path: string) {
-      const content = zipFiles[path];
+    file(zipPath: string) {
+      const content = zipFiles[zipPath];
       if (content === undefined) return null;
       return {
-        async: async (_type: string) => content,
+        asText: () =>
+          typeof content === "string" ? content : content.toString("utf-8"),
+        asUint8Array: () =>
+          content instanceof Buffer ? content : Buffer.from(content as string),
       };
     }
   },
@@ -122,11 +125,12 @@ describe("pptxToScript", () => {
     expect(script.scenes[1].type).toBe("text");
   });
 
-  test("image scene src points into assets/", async () => {
+  test("image scene src is a bare filename (relative to public/)", async () => {
     const script = await pptxToScript(FAKE_BUFFER);
     const scene = script.scenes[0];
     if (scene.type !== "image") throw new Error("expected image");
-    expect(scene.src).toMatch(/^assets\//);
+    // copyEmbeddedImage returns just the filename; staticFile() resolves it
+    expect(scene.src).toBe("slide1.png");
   });
 
   test("slide text is extracted into overlays for image scenes", async () => {

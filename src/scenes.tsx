@@ -1,6 +1,19 @@
 import React from "react";
-import { AbsoluteFill, Easing, Img, Video, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import type { ImageScene as ImageSceneType, TextScene as TextSceneType, VideoScene as VideoSceneType } from "./schema.ts";
+import {
+  AbsoluteFill,
+  Easing,
+  Img,
+  Video,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
+import type {
+  ImageScene as ImageSceneType,
+  TextScene as TextSceneType,
+  VideoScene as VideoSceneType,
+} from "./schema.ts";
 import type { Overlay } from "./schema.ts";
 
 // ── TextScene ─────────────────────────────────────────────────────────────────
@@ -14,20 +27,26 @@ export function TextScene({ scene }: TextSceneProps): React.ReactElement {
   const anim = scene.textAnimation;
   const dur = anim?.durationFrames ?? 20;
 
-  const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
+  const clamp = {
+    extrapolateLeft: "clamp" as const,
+    extrapolateRight: "clamp" as const,
+  };
   const easeOut = { ...clamp, easing: Easing.out(Easing.cubic) };
 
-  const opacity = anim && anim.entrance !== "none"
-    ? interpolate(frame, [0, dur], [0, 1], easeOut)
-    : 1;
+  const opacity =
+    anim && anim.entrance !== "none"
+      ? interpolate(frame, [0, dur], [0, 1], easeOut)
+      : 1;
 
-  const translateY = anim?.entrance === "fadeUp"
-    ? interpolate(frame, [0, dur], [30, 0], easeOut)
-    : 0;
+  const translateY =
+    anim?.entrance === "fadeUp"
+      ? interpolate(frame, [0, dur], [30, 0], easeOut)
+      : 0;
 
-  const scale = anim?.entrance === "scaleIn"
-    ? interpolate(frame, [0, dur], [0.85, 1], clamp)
-    : 1;
+  const scale =
+    anim?.entrance === "scaleIn"
+      ? interpolate(frame, [0, dur], [0.85, 1], clamp)
+      : 1;
 
   return (
     <AbsoluteFill
@@ -95,7 +114,10 @@ export function ImageScene({ scene }: ImageSceneProps): React.ReactElement {
   const { durationInFrames } = useVideoConfig();
   const kb = scene.kenBurns;
 
-  const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
+  const clamp = {
+    extrapolateLeft: "clamp" as const,
+    extrapolateRight: "clamp" as const,
+  };
 
   const scale = kb
     ? interpolate(frame, [0, durationInFrames], [kb.zoomFrom, kb.zoomTo], clamp)
@@ -112,7 +134,7 @@ export function ImageScene({ scene }: ImageSceneProps): React.ReactElement {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000000", overflow: "hidden" }}>
       <Img
-        src={scene.src}
+        src={staticFile(scene.src)}
         style={{
           width: "100%",
           height: "100%",
@@ -139,7 +161,7 @@ export function VideoScene({ scene }: VideoSceneProps): React.ReactElement {
   return (
     <AbsoluteFill>
       <Video
-        src={scene.src}
+        src={staticFile(scene.src)}
         style={{
           width: "100%",
           height: "100%",
