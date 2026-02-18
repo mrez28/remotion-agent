@@ -56,7 +56,9 @@ describe("parseScript", () => {
 
   test("preserves explicit transition 'fade'", () => {
     const raw = {
-      scenes: [{ type: "text", text: "Hello", duration: 3, transition: "fade" }],
+      scenes: [
+        { type: "text", text: "Hello", duration: 3, transition: "fade" },
+      ],
     };
     const result = parseScript(raw);
     expect(result.scenes[0].transition).toBe("fade");
@@ -162,5 +164,192 @@ describe("totalDurationInFrames", () => {
     };
     const script = parseScript(raw);
     expect(totalDurationInFrames(script)).toBe(60);
+  });
+});
+
+describe("transitions — slide and wipe", () => {
+  test("accepts slide transition", () => {
+    const raw = {
+      scenes: [{ type: "text", text: "Hi", duration: 3, transition: "slide" }],
+    };
+    expect(parseScript(raw).scenes[0].transition).toBe("slide");
+  });
+
+  test("accepts wipe transition", () => {
+    const raw = {
+      scenes: [{ type: "text", text: "Hi", duration: 3, transition: "wipe" }],
+    };
+    expect(parseScript(raw).scenes[0].transition).toBe("wipe");
+  });
+
+  test("rejects unknown transition value", () => {
+    const raw = {
+      scenes: [{ type: "text", text: "Hi", duration: 3, transition: "spin" }],
+    };
+    expect(() => parseScript(raw)).toThrow();
+  });
+});
+
+describe("kenBurns on ImageScene", () => {
+  test("parses kenBurns config", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "image",
+          src: "./assets/x.jpg",
+          duration: 5,
+          kenBurns: {
+            zoomFrom: 1.0,
+            zoomTo: 1.08,
+            panXFrom: 0,
+            panXTo: 2,
+            panYFrom: 0,
+            panYTo: 1,
+          },
+        },
+      ],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "image") throw new Error("expected image");
+    expect(scene.kenBurns?.zoomTo).toBe(1.08);
+    expect(scene.kenBurns?.panXTo).toBe(2);
+  });
+
+  test("applies kenBurns defaults when empty object provided", () => {
+    const raw = {
+      scenes: [{ type: "image", src: "./x.jpg", duration: 5, kenBurns: {} }],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "image") throw new Error("expected image");
+    expect(scene.kenBurns?.zoomFrom).toBe(1.0);
+    expect(scene.kenBurns?.zoomTo).toBe(1.08);
+    expect(scene.kenBurns?.panXFrom).toBe(0);
+    expect(scene.kenBurns?.panYTo).toBe(1);
+  });
+
+  test("kenBurns is optional — image scene without it still valid", () => {
+    const raw = { scenes: [{ type: "image", src: "./x.jpg", duration: 5 }] };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "image") throw new Error("expected image");
+    expect(scene.kenBurns).toBeUndefined();
+  });
+
+  test("rejects negative zoomFrom", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "image",
+          src: "./x.jpg",
+          duration: 5,
+          kenBurns: { zoomFrom: -1 },
+        },
+      ],
+    };
+    expect(() => parseScript(raw)).toThrow();
+  });
+});
+
+describe("textAnimation on TextScene", () => {
+  test("parses textAnimation config", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "text",
+          text: "Hi",
+          duration: 3,
+          textAnimation: { entrance: "fadeUp", durationFrames: 20 },
+        },
+      ],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "text") throw new Error("expected text");
+    expect(scene.textAnimation?.entrance).toBe("fadeUp");
+    expect(scene.textAnimation?.durationFrames).toBe(20);
+  });
+
+  test("accepts scaleIn entrance", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "text",
+          text: "Hi",
+          duration: 3,
+          textAnimation: { entrance: "scaleIn" },
+        },
+      ],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "text") throw new Error("expected text");
+    expect(scene.textAnimation?.entrance).toBe("scaleIn");
+  });
+
+  test("accepts none entrance", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "text",
+          text: "Hi",
+          duration: 3,
+          textAnimation: { entrance: "none" },
+        },
+      ],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "text") throw new Error("expected text");
+    expect(scene.textAnimation?.entrance).toBe("none");
+  });
+
+  test("applies default entrance fadeUp when empty object provided", () => {
+    const raw = {
+      scenes: [{ type: "text", text: "Hi", duration: 3, textAnimation: {} }],
+    };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "text") throw new Error("expected text");
+    expect(scene.textAnimation?.entrance).toBe("fadeUp");
+    expect(scene.textAnimation?.durationFrames).toBe(20);
+  });
+
+  test("rejects invalid entrance value", () => {
+    const raw = {
+      scenes: [
+        {
+          type: "text",
+          text: "Hi",
+          duration: 3,
+          textAnimation: { entrance: "spinIn" },
+        },
+      ],
+    };
+    expect(() => parseScript(raw)).toThrow();
+  });
+
+  test("textAnimation is optional — text scene without it still valid", () => {
+    const raw = { scenes: [{ type: "text", text: "Hi", duration: 3 }] };
+    const scene = parseScript(raw).scenes[0];
+    if (scene.type !== "text") throw new Error("expected text");
+    expect(scene.textAnimation).toBeUndefined();
+  });
+});
+
+describe("cinematic flag on VideoScript", () => {
+  test("parses cinematic: true", () => {
+    const raw = {
+      cinematic: true,
+      scenes: [{ type: "text", text: "Hi", duration: 3 }],
+    };
+    expect(parseScript(raw).cinematic).toBe(true);
+  });
+
+  test("defaults cinematic to false when omitted", () => {
+    const raw = { scenes: [{ type: "text", text: "Hi", duration: 3 }] };
+    expect(parseScript(raw).cinematic).toBe(false);
+  });
+
+  test("parses cinematic: false explicitly", () => {
+    const raw = {
+      cinematic: false,
+      scenes: [{ type: "text", text: "Hi", duration: 3 }],
+    };
+    expect(parseScript(raw).cinematic).toBe(false);
   });
 });

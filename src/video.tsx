@@ -1,7 +1,9 @@
 import React from "react";
 import { AbsoluteFill } from "remotion";
-import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import { TransitionSeries, linearTiming, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
+import { slide } from "@remotion/transitions/slide";
+import { wipe } from "@remotion/transitions/wipe";
 import { TextScene, ImageScene, VideoScene } from "./scenes.tsx";
 import type { VideoScript, Scene } from "./schema.ts";
 
@@ -13,9 +15,25 @@ function SceneComponent({ scene }: { scene: Scene }): React.ReactElement {
   return <VideoScene scene={scene} />;
 }
 
-// ── VideoComposition ──────────────────────────────────────────────────────────
+// ── Transition resolver ───────────────────────────────────────────────────────
 
 const TRANSITION_DURATION_FRAMES = 15;
+
+function resolveTransition(scene: Scene) {
+  const dur = TRANSITION_DURATION_FRAMES;
+  switch (scene.transition) {
+    case "fade":
+      return { presentation: fade(), timing: linearTiming({ durationInFrames: dur }) };
+    case "slide":
+      return { presentation: slide({ direction: "from-right" }), timing: springTiming({ durationInFrames: dur }) };
+    case "wipe":
+      return { presentation: wipe({ direction: "from-left" }), timing: linearTiming({ durationInFrames: dur }) };
+    default:
+      return null;
+  }
+}
+
+// ── VideoComposition ──────────────────────────────────────────────────────────
 
 interface VideoCompositionProps extends VideoScript {}
 
@@ -35,14 +53,17 @@ export function VideoComposition(props: VideoCompositionProps): React.ReactEleme
     );
 
     // Add transition after every scene except the last.
-    if (i < scenes.length - 1 && scene.transition === "fade") {
-      children.push(
-        <TransitionSeries.Transition
-          key={`transition-${i}`}
-          presentation={fade()}
-          timing={linearTiming({ durationInFrames: TRANSITION_DURATION_FRAMES })}
-        />
-      );
+    if (i < scenes.length - 1) {
+      const t = resolveTransition(scene);
+      if (t) {
+        children.push(
+          <TransitionSeries.Transition
+            key={`transition-${i}`}
+            presentation={t.presentation}
+            timing={t.timing}
+          />
+        );
+      }
     }
   });
 
