@@ -1,0 +1,7 @@
+node_modules/
+out/
+assets/
+dist/
+.bun/
+*.mp4
+*.mov

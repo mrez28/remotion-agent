@@ -1,0 +1,35 @@
+{
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "output": "out/video.mp4",
+  "scenes": [
+    {
+      "type": "text",
+      "text": "Welcome to Remotion Agent",
+      "duration": 3,
+      "transition": "fade",
+      "fontSize": 90,
+      "color": "#ffffff",
+      "background": "#1a1a2e"
+    },
+    {
+      "type": "text",
+      "text": "Build videos from JSON scripts",
+      "duration": 3,
+      "transition": "fade",
+      "fontSize": 70,
+      "color": "#e0e0e0",
+      "background": "#16213e"
+    },
+    {
+      "type": "text",
+      "text": "Powered by Remotion + TypeScript",
+      "duration": 3,
+      "transition": "none",
+      "fontSize": 70,
+      "color": "#a8d8ea",
+      "background": "#0f3460"
+    }
+  ]
+}
