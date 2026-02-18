@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "render": "bun src/cli.ts",
+    "preview": "remotion studio src/composition.ts",
     "test": "bun test"
   },
   "dependencies": {

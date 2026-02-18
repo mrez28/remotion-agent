@@ -5,6 +5,10 @@ A CLI tool that renders MP4 videos from a JSON script using [Remotion](https://w
 ## Usage
 
 ```bash
+# Preview composition in browser (Remotion Studio)
+bun run preview
+
+# Render to MP4
 bun run render scripts/sample.json
 ```
 
